@@ -46,6 +46,15 @@
       <button class="icon-btn" id="closeFormBtn" type="button" aria-label="Закрыть">+</button>
     </div>
     <form id="addForm">
+      <div class="field">
+        <span>Импорт из подписки <i>(необязательно — можно вставить ссылку вручную ниже)</i></span>
+        <div class="sub-row">
+          <input id="subUrl" type="text" placeholder="https://…/sub/ключ" autocomplete="off">
+          <button class="btn-ghost" type="button" id="subLoadBtn">Загрузить</button>
+        </div>
+        <p class="form-err" id="subErr" hidden></p>
+        <div class="sub-list" id="subList" hidden></div>
+      </div>
       <label class="field">
         <span>Название <i>(необязательно — подставится из ссылки)</i></span>
         <input name="name" type="text" placeholder="netherlands" maxlength="80">

@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from . import db
 from . import xray_manager
 from .health import proxy_check, tcp_ok
+from .subscription import fetch_subscription
 from .vless_parser import parse_vless_url, VlessParseError
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -143,6 +144,25 @@ async def api_validate(body: ValidateIn):
         return await xray_manager.ephemeral_check(body.vless_url.strip(), body.mode)
     except VlessParseError as e:
         raise HTTPException(422, f"VLESS: {e}")
+
+
+class SubscriptionIn(BaseModel):
+    url: str
+
+
+@app.post("/api/subscription/fetch")
+async def api_subscription_fetch(body: SubscriptionIn):
+    """Скачать подписку, декодировать (base64/plain) и вернуть список серверов."""
+    from urllib.parse import urlparse as _urlparse
+
+    u = _urlparse(body.url.strip())
+    if u.scheme not in ("http", "https") or not u.hostname:
+        raise HTTPException(422, "нужен http(s) URL подписки")
+    try:
+        servers = await fetch_subscription(body.url.strip())
+    except Exception as e:
+        raise HTTPException(502, f"не удалось загрузить подписку: {e}"[:300])
+    return {"count": len(servers), "servers": servers}
 
 
 @app.post("/api/profiles")
