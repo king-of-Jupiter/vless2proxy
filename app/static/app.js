@@ -41,8 +41,29 @@
   modeInputs.forEach(function (r) { r.addEventListener('change', syncMode); });
   syncMode();
 
-  async function api(path, opts) {
-    var res = await fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts || {}));
+  // Копирование: Clipboard API работает только в secure-контексте
+  // (https/localhost), по HTTP в LAN используется fallback через execCommand.
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) { /* нет доступа — пробуем fallback ниже */ }
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return !!ok;
+    } catch (e2) {
+      return false;
+    }
+  }
+
+  async function api(path, opts) {    var res = await fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts || {}));
     var data = null;
     try { data = await res.json(); } catch (e) { /* пусто */ }
     if (!res.ok) {
@@ -237,11 +258,9 @@
     var btn = ev.target.closest('button');
     if (!btn) return;
     if (btn.classList.contains('copy')) {
-      try {
-        await navigator.clipboard.writeText(btn.dataset.copy || '');
-        btn.textContent = 'ок';
-        setTimeout(function () { btn.textContent = 'копия'; }, 1200);
-      } catch (e) { /* clipboard недоступен */ }
+      var done = await copyText(btn.dataset.copy || '');
+      btn.textContent = done ? 'ок' : 'ошибка';
+      setTimeout(function () { btn.textContent = 'копия'; }, 1200);
       return;
     }
     var card = ev.target.closest('.card');

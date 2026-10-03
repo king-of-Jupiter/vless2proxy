@@ -21,6 +21,15 @@ from .vless_parser import parse_vless_url, VlessParseError
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+
+def static_version() -> str:
+    """Версия статики по mtime файлов — как query-параметр против кэша браузера."""
+    try:
+        mtimes = [(BASE_DIR / "static" / f).stat().st_mtime for f in ("style.css", "app.js")]
+        return str(int(max(mtimes)))
+    except OSError:
+        return "1"
+
 CHECK_INTERVAL = int(os.environ.get("CHECK_INTERVAL", "30"))
 DASHBOARD_PORT = int(os.environ.get("DASHBOARD_PORT", "8123"))
 
@@ -117,7 +126,8 @@ async def index(request: Request):
     return templates.TemplateResponse(
         request,
         "index.html",
-        {"profiles": profiles, "next_ports": nxt, "dashboard_port": DASHBOARD_PORT},
+        {"profiles": profiles, "next_ports": nxt, "dashboard_port": DASHBOARD_PORT,
+         "static_v": static_version()},
     )
 
 

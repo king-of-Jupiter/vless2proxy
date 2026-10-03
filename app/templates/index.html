@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script>try{var _t=localStorage.getItem('vless-theme');if(!_t){_t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v={{ static_v }}">
 </head>
 <body>
 <div class="ambient" aria-hidden="true"></div>
@@ -135,6 +135,6 @@
     <p>Проверка: TCP до порта + запрос через прокси (<span class="mono">generate_204</span> и <span class="mono">api.ipify.org</span>). Интервал авточека — <span class="mono" id="intervalNote">30 c</span>. Логи Xray — в карточке по кнопке «Логи».</p>
   </footer>
 </div>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v={{ static_v }}"></script>
 </body>
 </html>
