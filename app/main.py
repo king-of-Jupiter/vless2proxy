@@ -25,7 +25,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 def static_version() -> str:
     """Версия статики по mtime файлов — как query-параметр против кэша браузера."""
     try:
-        mtimes = [(BASE_DIR / "static" / f).stat().st_mtime for f in ("style.css", "app.js")]
+        mtimes = [(BASE_DIR / "static" / f).stat().st_mtime for f in ("style.css", "app.js", "favicon.svg")]
         return str(int(max(mtimes)))
     except OSError:
         return "1"
