@@ -272,6 +272,20 @@
     }
   });
 
+  // Хост в строках подключения: подставляем адрес, через который открыт
+  // дашборд (location.hostname) — ссылки сразу пригодны и для LAN
+  // (http://192.168.x.x:8123), и для localhost. Без JS остаётся 127.0.0.1.
+  (function () {
+    var host = window.location.hostname;
+    if (!host) return;
+    document.querySelectorAll('.conn').forEach(function (row) {
+      var code = row.querySelector('code');
+      var btn = row.querySelector('.copy');
+      if (code) code.textContent = code.textContent.split('127.0.0.1').join(host);
+      if (btn && btn.dataset.copy) btn.dataset.copy = btn.dataset.copy.split('127.0.0.1').join(host);
+    });
+  })();
+
   // Мягкое появление блоков
   var io = new IntersectionObserver(function (entries) {
     entries.forEach(function (en) {
