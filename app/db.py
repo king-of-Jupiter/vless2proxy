@@ -7,6 +7,8 @@ import time
 
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
 DB_PATH = os.path.join(DATA_DIR, "profiles.db")
+SOCKS_BASE_PORT = int(os.environ.get("SOCKS_BASE_PORT", "1080"))
+HTTP_BASE_PORT = int(os.environ.get("HTTP_BASE_PORT", "9000"))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profiles (
@@ -118,13 +120,13 @@ async def update_health(pid: int, status: str, ping_ms: int | None, ip: str | No
 
 
 async def next_ports() -> dict:
-    """Следующие свободные порты: max+1 (socks от 1080, http от 9000)."""
+    """Следующие свободные порты: max+1 (старт с SOCKS_BASE_PORT / HTTP_BASE_PORT)."""
     profiles = await list_profiles()
     socks = [p["socks_port"] for p in profiles if p["socks_port"]]
     https = [p["http_port"] for p in profiles if p["http_port"]]
     return {
-        "socks_port": (max(socks) + 1) if socks else 1080,
-        "http_port": (max(https) + 1) if https else 9000,
+        "socks_port": (max(socks) + 1) if socks else SOCKS_BASE_PORT,
+        "http_port": (max(https) + 1) if https else HTTP_BASE_PORT,
     }
 
 

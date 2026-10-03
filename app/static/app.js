@@ -6,6 +6,24 @@
   var form = document.getElementById('addForm');
   var formErr = document.getElementById('formErr');
 
+  // Тёмная / светлая тема, выбор хранится в localStorage
+  var themeToggle = document.getElementById('themeToggle');
+  var themeLabel = document.getElementById('themeLabel');
+  function paintThemeLabel() {
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (themeLabel) themeLabel.textContent = dark ? 'Светлая' : 'Тёмная';
+  }
+  if (themeToggle) {
+    paintThemeLabel();
+    themeToggle.addEventListener('click', function () {
+      var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      var next = dark ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('vless-theme', next); } catch (e) { /* приватный режим */ }
+      paintThemeLabel();
+    });
+  }
+
   function showPanel(v) { panel.hidden = !v; if (v) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
   document.getElementById('openFormBtn').addEventListener('click', function () { showPanel(true); });
   document.getElementById('closeFormBtn').addEventListener('click', function () { showPanel(false); });
@@ -37,6 +55,9 @@
   form.addEventListener('submit', async function (ev) {
     ev.preventDefault();
     formErr.hidden = true;
+    var submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Запуск и проверка…';
     var fd = new FormData(form);
     var payload = {
       name: (fd.get('name') || '').toString().trim(),
@@ -62,6 +83,50 @@
     } catch (e) {
       formErr.textContent = e.message;
       formErr.hidden = false;
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Запустить';
+    }
+  });
+
+  // Предпроверка ссылки до добавления: временный прокси + пинг + IP
+  var precheckBtn = document.getElementById('precheckBtn');
+  var precheckResult = document.getElementById('precheckResult');
+  var urlField = form.querySelector('textarea[name="vless_url"]');
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]);
+    });
+  }
+  function setPrecheck(html) { precheckResult.innerHTML = html; precheckResult.hidden = false; }
+  urlField.addEventListener('input', function () { precheckResult.hidden = true; });
+  precheckBtn.addEventListener('click', async function () {
+    var url = urlField.value.trim();
+    var mode = form.querySelector('input[name="mode"]:checked').value;
+    if (!url) {
+      setPrecheck('<span class="badge badge-offline">ошибка</span><span>Вставьте VLESS-ссылку</span>');
+      return;
+    }
+    precheckBtn.disabled = true;
+    precheckBtn.textContent = 'Проверяется…';
+    setPrecheck('<span class="meta">Поднимаю временный прокси и меряю пинг…</span>');
+    try {
+      var r = await api('/api/validate', { method: 'POST', body: JSON.stringify({ vless_url: url, mode: mode }) });
+      if (r.ok) {
+        setPrecheck(
+          '<span class="badge badge-online">онлайн</span>' +
+          '<code class="mono">' + escapeHtml(r.ip || '—') + '</code>' +
+          '<span class="ping mono">' + r.ping_ms + ' ms</span>' +
+          '<span class="meta">' + escapeHtml((r.transport || '') + ' · ' + (r.server || '')) + '</span>'
+        );
+      } else {
+        setPrecheck('<span class="badge badge-offline">офлайн</span><span>' + escapeHtml(r.error || 'неизвестная ошибка') + '</span>');
+      }
+    } catch (e) {
+      setPrecheck('<span class="badge badge-offline">ошибка</span><span>' + escapeHtml(e.message) + '</span>');
+    } finally {
+      precheckBtn.disabled = false;
+      precheckBtn.textContent = 'Проверить ссылку';
     }
   });
 

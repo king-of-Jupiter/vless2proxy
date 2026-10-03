@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from . import db
 from . import xray_manager
-from .health import proxy_check
+from .health import proxy_check, tcp_ok
 from .vless_parser import parse_vless_url, VlessParseError
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -130,6 +130,21 @@ async def api_next_ports():
     return await db.next_ports()
 
 
+class ValidateIn(BaseModel):
+    vless_url: str
+    mode: str = Field(default="socks5", pattern="^(socks5|http|both)$")
+
+
+@app.post("/api/validate")
+async def api_validate(body: ValidateIn):
+    """Предпроверка ссылки без сохранения: поднимает временный Xray,
+    возвращает online/offline + пинг + egress-IP."""
+    try:
+        return await xray_manager.ephemeral_check(body.vless_url.strip(), body.mode)
+    except VlessParseError as e:
+        raise HTTPException(422, f"VLESS: {e}")
+
+
 @app.post("/api/profiles")
 async def api_create(body: ProfileIn):
     try:
@@ -149,10 +164,18 @@ async def api_create(body: ProfileIn):
     p = await db.create_profile(name, body.vless_url.strip(), body.mode, socks_port, http_port)
     try:
         xray_manager.start(p)
+        # Проверяем сразу, чтобы карточка не висела в offline/unknown:
+        # ждём бинд порта, затем полный прокси-чек с пингом и IP.
+        check_port = socks_port or http_port
+        for _ in range(25):
+            if await tcp_ok(check_port, 0.3):
+                break
+            await asyncio.sleep(0.2)
+        status, ping, ip, err = await proxy_check(p)
+        await db.update_health(p["id"], status, ping, ip, err)
     except Exception as e:
         await db.update_health(p["id"], "offline", None, None, str(e)[:300])
-        p = await db.get_profile(p["id"])
-    return enrich(p)
+    return enrich(await db.get_profile(p["id"]))
 
 
 @app.put("/api/profiles/{pid}")

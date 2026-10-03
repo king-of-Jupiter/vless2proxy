@@ -2,11 +2,19 @@ services:
   dashboard:
     build: .
     container_name: vless-dashboard
-    network_mode: host
+    # ВАЖНО: network_mode: host НЕ работает в Docker Desktop (Windows/Mac) —
+    # порты из контейнера недоступны на хосте. Поэтому bridge + проброс портов.
+    # На нативном Linux можно вернуть network_mode: host и убрать ports.
+    ports:
+      - "8123:8123"          # дашборд
+      - "1080-1130:1080-1130" # SOCKS5-профили
+      - "9100-9150:9100-9150" # HTTP-профили
     environment:
       DATA_DIR: /data
       DASHBOARD_PORT: "8123"
       CHECK_INTERVAL: "30"
+      SOCKS_BASE_PORT: "1080"
+      HTTP_BASE_PORT: "9100"
     volumes:
       - ./data:/data
     restart: unless-stopped
