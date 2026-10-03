@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VLESS → SOCKS5 — панель</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="ambient" aria-hidden="true"></div>
+<div class="wrap">
+
+  <header class="masthead reveal">
+    <div>
+      <p class="eyebrow">LAN-панель · без авторизации</p>
+      <h1>VLESS <em>→</em> SOCKS5</h1>
+      <p class="lede">Добавляйте VLESS-ссылки (TCP / XHTTP), выбирайте порт — на нём поднимется прокси. Статус и пинг обновляются автоматически.</p>
+    </div>
+    <div class="mast-side">
+      <div class="stat-row">
+        <div class="stat"><span class="stat-num" id="statOnline">{{ profiles | selectattr('last_status','equalto','online') | list | length }}</span><span class="stat-label">онлайн</span></div>
+        <div class="stat"><span class="stat-num" id="statTotal">{{ profiles | length }}</span><span class="stat-label">всего</span></div>
+      </div>
+      <button class="btn-primary" id="openFormBtn" type="button">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
+        Добавить
+      </button>
+      <p class="hint">Дашборд: <kbd> :{{ dashboard_port }}</kbd> · сеть <kbd>host</kbd></p>
+    </div>
+  </header>
+
+  <section class="panel reveal" id="addPanel" hidden>
+    <div class="panel-head">
+      <h2>Новый прокси</h2>
+      <button class="icon-btn" id="closeFormBtn" type="button" aria-label="Закрыть">+</button>
+    </div>
+    <form id="addForm">
+      <label class="field">
+        <span>Название <i>(необязательно — подставится из ссылки)</i></span>
+        <input name="name" type="text" placeholder="netherlands" maxlength="80">
+      </label>
+      <label class="field">
+        <span>VLESS-ссылка</span>
+        <textarea name="vless_url" rows="3" required placeholder="vless://uuid@host:443?security=reality&…"></textarea>
+      </label>
+      <div class="field">
+        <span>Режим</span>
+        <div class="seg" role="radiogroup" aria-label="Режим">
+          <label><input type="radio" name="mode" value="socks5" checked><span>SOCKS5</span></label>
+          <label><input type="radio" name="mode" value="http"><span>HTTP</span></label>
+          <label><input type="radio" name="mode" value="both"><span>Оба</span></label>
+        </div>
+      </div>
+      <div class="grid2">
+        <label class="field" id="socksField">
+          <span>SOCKS5 порт</span>
+          <input name="socks_port" type="number" min="1" max="65535" value="{{ next_ports.socks_port }}">
+        </label>
+        <label class="field" id="httpField" hidden>
+          <span>HTTP порт</span>
+          <input name="http_port" type="number" min="1" max="65535" value="{{ next_ports.http_port }}">
+        </label>
+      </div>
+      <p class="form-err" id="formErr" hidden></p>
+      <div class="form-actions">
+        <button class="btn-primary" type="submit">Запустить</button>
+        <button class="btn-ghost" type="button" id="cancelFormBtn">Отмена</button>
+      </div>
+    </form>
+  </section>
+
+  <main class="grid" id="cards">
+    {% for p in profiles %}
+    <article class="card reveal" style="--index: {{ loop.index0 }}" data-id="{{ p.id }}">
+      <div class="card-top">
+        <span class="dot dot-{{ p.last_status }}" title="{{ p.last_error or p.last_status }}"></span>
+        <span class="badge badge-{{ p.last_status }}">{{ 'онлайн' if p.last_status=='online' else ('выкл' if not p.enabled else 'офлайн') }}</span>
+        <span class="mode-tag">{{ {'socks5':'SOCKS5','http':'HTTP','both':'SOCKS5 + HTTP'}[p.mode] }}</span>
+        <span class="spacer"></span>
+        {% if p.last_ping_ms is not none %}<span class="ping mono">{{ p.last_ping_ms }} ms</span>{% endif %}
+      </div>
+      <h3 class="card-name">{{ p.name }}</h3>
+      <div class="conn-list">
+        {% if p.socks_port %}
+        <div class="conn"><code class="mono">socks5://127.0.0.1:{{ p.socks_port }}</code><button class="copy" data-copy="socks5://127.0.0.1:{{ p.socks_port }}" type="button">копия</button></div>
+        {% endif %}
+        {% if p.http_port %}
+        <div class="conn"><code class="mono">http://127.0.0.1:{{ p.http_port }}</code><button class="copy" data-copy="http://127.0.0.1:{{ p.http_port }}" type="button">копия</button></div>
+        {% endif %}
+      </div>
+      <p class="meta mono">{% if p.last_ip %}egress {{ p.last_ip }} · {% endif %}{{ 'запущен' if p.running else 'остановлен' }}{% if p.last_error and p.last_status!='online' %} · {{ p.last_error[:90] }}{% endif %}</p>
+      <div class="actions">
+        <button data-act="check" type="button">Проверить</button>
+        {% if p.running %}<button data-act="stop" type="button">Стоп</button>
+        {% else %}<button data-act="start" type="button">Старт</button>{% endif %}
+        <button data-act="restart" type="button">Рестарт</button>
+        <button data-act="logs" type="button">Логи</button>
+        <button data-act="del" class="danger" type="button">Удалить</button>
+      </div>
+      <pre class="logs mono" hidden></pre>
+    </article>
+    {% else %}
+    <div class="empty reveal">
+      <p class="empty-title">Пока пусто</p>
+      <p>Добавьте первую VLESS-ссылку — SOCKS5 поднимется на выбранном порту.</p>
+    </div>
+    {% endfor %}
+  </main>
+
+  <footer class="foot">
+    <p>Проверка: TCP до порта + запрос через прокси (<span class="mono">generate_204</span> и <span class="mono">api.ipify.org</span>). Интервал авточека — <span class="mono" id="intervalNote">30 c</span>. Логи Xray — в карточке по кнопке «Логи».</p>
+  </footer>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+services:
+  dashboard:
+    build: .
+    container_name: vless-dashboard
+    network_mode: host
+    environment:
+      DATA_DIR: /data
+      DASHBOARD_PORT: "8123"
+      CHECK_INTERVAL: "30"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
